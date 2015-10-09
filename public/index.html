@@ -10,27 +10,27 @@
 	<link rel="stylesheet/style.css" rel="stylesheet">
 </head>
 <body>
-	<!-- AngularStrap Navbar -->
+	<!-- AngularStrap Navbar,  the active class is applied automatically to <li> elements when you change routes. Plus you get many other awesome directives that integrate with AngualrJS such as Alert, Typeahead, Tooltip, Tab and many more.-->
 	<div class="navbar navbar-default navbar-static-top"
-     role="navigation" bs-navbar>
-  <div class="navbar-header">
-    <a class="navbar-brand" href="/">
-      <span class="glyphicon glyphicon-film"></span>
-      Show<strong>Trackr</strong></a>
-  </div>
-  <ul class="nav navbar-nav">
-    <li data-match-route="/$"><a href="/">Home</a></li>
-    <li data-match-route="/add"><a href="/add">Add</a></li>
-  </ul>
-  <ul class="nav navbar-nav pull-right" ng-if="!currentUser">
-    <li data-match-route="/login"><a href="/login">Login</a></li>
-    <li data-match-route="/signup"><a href="/signup">Sign up</a></li>
-  </ul>
-  <ul class="nav navbar-nav pull-right" ng-if="currentUser">
-    <li class="navbar-text" ng-bind="currentUser.email"></li>
-    <li><a href="javascript:void(0)" ng-click="logout()">Logout</a></li>
-  </ul>
-</div>"></div>
+	     role="navigation" bs-navbar>
+	  <div class="navbar-header">
+	    <a class="navbar-brand" href="/">
+	      <span class="glyphicon glyphicon-film"></span>
+	      Show<strong>Trackr</strong></a>
+	  </div>
+	  <ul class="nav navbar-nav">
+	    <li data-match-route="/$"><a href="/">Home</a></li>
+	    <li data-match-route="/add"><a href="/add">Add</a></li>
+	  </ul>
+	  <ul class="nav navbar-nav pull-right" ng-if="!currentUser">
+	    <li data-match-route="/login"><a href="/login">Login</a></li>
+	    <li data-match-route="/signup"><a href="/signup">Sign up</a></li>
+	  </ul>
+	  <ul class="nav navbar-nav pull-right" ng-if="currentUser">
+	    <li class="navbar-text" ng-bind="currentUser.email"></li>
+	    <li><a href="javascript:void(0)" ng-click="logout()">Logout</a></li>
+	  </ul>
+	</div>
 
 	<div ng-view></div>
 
