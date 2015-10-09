@@ -2,3 +2,4 @@ angular.module('MyApp', ['ngCookies', 'ngResource', 'ngMessages', 'ngRoute', 'mg
 	.config(function() {
 		$locationProvider.html5Mode(true);
 	});
+
