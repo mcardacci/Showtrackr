@@ -9,6 +9,7 @@ var app = express();
 var mongoose = require('mongoose');
 var bcrypt = require('bcryptjs');
 
+// User and Show schemas using mongoose
 var showSchema = new mongoose.Schema({
 	_id: Number,
 	name: String,
@@ -63,12 +64,42 @@ var Show = mongoose.model('Show', showSchema);
 
 mongoose.connect('localhost');
 
+
+//Express middlewares
 app.set('port', process.env.PORT || 3000);
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+//APP ROUTES
+app.get('/api/shows', function(req, res, next) {
+	var query = Show.find();
+	if (req.query.genre) {
+		query.where({ genre: req.query.genre });
+	} else if (req.query.alphabet) {
+		query.where({ name: new RegExp('^' + '[' + req.query.alphabet + ']', 'i') });
+	} else {
+		query.limit(12);
+	}
+	query.exec(function(err, shows) {
+		if (err) return next(err);
+		res.send(shows);
+	})
+});
+
+app.get('/api/shows/:id', function(req, res, next) {
+	Show.findById(req.params.id, function(err, show) {
+		if (err) return next(err);
+		res.send(show);
+	});
+});
+
+app.use(function(err, req, res, next) {
+	console.error(err.stack);
+	res.send(500, { message: err.message });
+});
 
 app.listen(app.get('port'), function() {
 	console.log('Express server listeniing on port ' + app.get('port'));
