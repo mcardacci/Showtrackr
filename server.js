@@ -40,6 +40,7 @@ var userSchema = new mongoose.Schema({
 	password: String
 });
 
+//before save actions
 userSchema.pre('save', function(next) {
 	var user = this;
 	if (!user.isModified('password')) return next();
@@ -96,6 +97,14 @@ app.get('/api/shows/:id', function(req, res, next) {
 	});
 });
 
+//This is a hack for HTML5pushState on client-side. It is a redirect route that prevents a 404.
+//You must add this after all your other routes. The '*' is a wild card that matches any route 
+//you type
+app.get('*', function(req, res) {
+	res.redirect('/#' + req.originalUrl);
+})
+
+//When an error occurs a stack trace is output in the console and error message is returned
 app.use(function(err, req, res, next) {
 	console.error(err.stack);
 	res.send(500, { message: err.message });
