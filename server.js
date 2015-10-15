@@ -70,7 +70,7 @@ mongoose.connect('localhost');
 app.set('port', process.env.PORT || 3000);
 app.use(logger('dev'));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded());
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -97,9 +97,42 @@ app.get('/api/shows/:id', function(req, res, next) {
 	});
 });
 
-//This is a hack for HTML5pushState on client-side. It is a redirect route that prevents a 404.
-//You must add this after all your other routes. The '*' is a wild card that matches any route 
-//you type
+app.post('/api/shows', function(req, res, next) {
+	var apiKey = '9EF1D1E7D28FDA0B';
+	var parser = xml2js.Parser({
+		explicitArray: false,
+		normalizeTags: true
+	});
+	var seriesName = req.body.showname
+		.toLowerCase()
+		.replace(/ /g, '_')
+		.replace(/[^\w-]+/g, '');
+
+	async.waterfall([
+		function(callback) {
+			request.get('http://thetvdb.com/api/GetSeries.php?seriesname=' + seriesName, function(error, response, body) {
+				if (error) return next(error);
+				parser.parseString(body, function(err, result) {
+					if (!result.data.series) {
+						return res.send(404, { message: req.body.shoName + ' was not found.' });
+					}
+					var seriesId = result.data.series.seriesid || result.data.series[0].seriesid;
+					callback(err, seriesId);
+				});
+			});
+		},
+		function(seriesId, callback) {
+			request.get('http://thetvdb.com/api/' + apiKey + '/series/' + seriesId + '/all/en.xml', function(error, response, body) {
+				
+			})
+		}
+	])
+})
+
+//This is a hack for HTML5pushState on client-side. 
+//It is a redirect route that prevents a 404.
+//You must add this after all your other routes. 
+//The '*' is a wild card that matches any route you type.
 app.get('*', function(req, res) {
 	res.redirect('/#' + req.originalUrl);
 })
