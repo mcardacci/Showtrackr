@@ -114,7 +114,7 @@ app.post('/api/shows', function(req, res, next) {
 				if (error) return next(error);
 				parser.parseString(body, function(err, result) {
 					if (!result.data.series) {
-						return res.send(404, { message: req.body.shoName + ' was not found.' });
+						return res.send(404, { message: req.body.showgitName + ' was not found.' });
 					}
 					var seriesId = result.data.series.seriesid || result.data.series[0].seriesid;
 					callback(err, seriesId);
@@ -123,7 +123,7 @@ app.post('/api/shows', function(req, res, next) {
 		},
 		function(seriesId, callback) {
 			request.get('http://thetvdb.com/api/' + apiKey + '/series/' + seriesId + '/all/en.xml', function(error, response, body) {
-				
+
 			})
 		}
 	])
