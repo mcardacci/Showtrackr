@@ -3,6 +3,10 @@ var path = require('path');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
+var async = require('async');
+var request = require('request');
+var xml2js = require('xml2js');
+var _ = require('lodash');
 
 var app = express();
 
@@ -99,6 +103,8 @@ app.get('/api/shows/:id', function(req, res, next) {
 
 app.post('/api/shows', function(req, res, next) {
 	var apiKey = '9EF1D1E7D28FDA0B';
+	//xml2js parser is configured to normalize all tags to lowercase and disable conversion 
+	//to arrays when there is only one child element
 	var parser = xml2js.Parser({
 		explicitArray: false,
 		normalizeTags: true
@@ -110,6 +116,7 @@ app.post('/api/shows', function(req, res, next) {
 
 	async.waterfall([
 		function(callback) {
+			//get the Show Id given the Show Name
 			request.get('http://thetvdb.com/api/GetSeries.php?seriesname=' + seriesName, function(error, response, body) {
 				if (error) return next(error);
 				parser.parseString(body, function(err, result) {
@@ -121,13 +128,67 @@ app.post('/api/shows', function(req, res, next) {
 				});
 			});
 		},
+		// Get the Show information using the seriesId from the previous function
 		function(seriesId, callback) {
 			request.get('http://thetvdb.com/api/' + apiKey + '/series/' + seriesId + '/all/en.xml', function(error, response, body) {
-
-			})
+				if (error) return next(error);
+				parser.parseString(body, function(err, result) {
+					var series = result.data.series;
+					var episodes = result.data.episode;
+					var show = new Show({
+						_id: series.id,
+            name: series.seriesname,
+            airsDayOfWeek: series.airs_dayofweek,
+            airsTime: series.airs_time,
+            firstAired: series.firstaired,
+            genre: series.genre.split('|').filter(Boolean),
+            network: series.network,
+            overview: series.overview,
+            rating: series.rating,
+            ratingCount: series.ratingcount,
+            runtime: series.runtime,
+            status: series.status,
+            poster: series.poster,
+            episodes: []
+					});
+					//for each show:
+					_.each(episodes, function(episode) {
+						show.episodes.push({
+							season: episode.seasonnumber,
+              episodeNumber: episode.episodenumber,
+              episodeName: episode.episodename,
+              firstAired: episode.firstaired,
+              overview: episode.overview
+						});
+					});
+					callback(err, show);
+				});
+			});
+		},
+		//Convert the poster image to Base64 and assign it to show.poster
+		function(show, callback) {
+			var url = 'http://thetvdb.com/banners/' + show.poster;
+			request({ url: url, encoding: null }, function(error, response, body) {
+				show.poster = 'data:' + response.headers['content-type'] + ';base64,' + body.toString('base64');
+				callback(error, show);
+			});
 		}
-	])
-})
+		//pass the show object to the final callback function and save it to the database
+	], function(err, show) {
+		if (err) return next(err);
+		show.save(function(err) {
+			if (err) {
+				//11000 is the duplicate key error bc we can't have duplicate _id fields in Mongo
+				if (err.code === 11000) {
+					//409 is an http status code
+					return res.send(409, { message: show.name + ' already exists.' });
+				}
+				return next(err);
+			}
+			res.send(200);
+		});
+	});
+});
 
 //This is a hack for HTML5pushState on client-side. 
 //It is a redirect route that prevents a 404.
