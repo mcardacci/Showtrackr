@@ -9,7 +9,7 @@ angular.module('MyApp')
       $scope.isSubscribed = function() {
         return $scope.show.subscribers.indexOf($rootScope.currentUser._id) !== -1;
       };
-
+      // pushes user id into subscriber array in the subscriber model
       $scope.subscribe = function() {
         Subscription.subscribe(show).success(function() {
           $scope.show.subscribers.push($rootScope.currentUser._id);
