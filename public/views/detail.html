@@ -53,11 +53,11 @@
 		<div class="panel-body">
 			<div class="episode" ng-repeatt="episode in show.episodes">
 				<h4>{{ episode.episodeName }}
-					<small>Season {{episode.season }}, Episode {{ episode.episodeNumber }}</small>
+					<small>Season {{ episode.season }}, Episode {{ episode.episodeNumber }}</small>
 				</h4>
 				<p>
 					<span class="glyphicon glyphicon-calendar"></span>
-					{{ epissode.firstAired | date: 'short' }}
+					{{ episode.firstAired | date: 'short' }}
 				</p>
 				<p>{{ episode.overview }}</p>
 			</div>
