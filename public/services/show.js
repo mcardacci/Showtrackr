@@ -1,5 +1,5 @@
 angular.module('MyApp')
-//$resource is a factory that crates a resource object tthatt letts you
+//$resource is a factory that crates a resource object that lets you
 //interact with RESTful server-side data sources
 //angular provides factories so we don't handle http
 //requests inside controllers. Keeps code modular
