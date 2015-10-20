@@ -14,8 +14,11 @@ var LocalStrategy = require('passport-local').Strategy;
 var mongoose = require('mongoose');
 var bcrypt = require('bcryptjs');
 var crypto = require('crypto');
+var jwt = require('jwt-simple');
+var moment = require('moment');
 
-var app = express();
+var tokenSecret = 'your unique secret';
+
 
 
 // User and Show schemas using mongoose
@@ -45,7 +48,8 @@ var showSchema = new mongoose.Schema({
 });
 
 var userSchema = new mongoose.Schema({
-	email: { type: String, unique: true },
+	name: { type: String, trim: true, required: true},
+	email: { type: String, unique: true, lowercase: true, trim: true },
 	password: String
 });
 
@@ -56,6 +60,7 @@ userSchema.pre('save', function(next) {
 	bcrypt.genSalt(10, function(err, salt) {
 		if (err) return next(err);
 		bcrypt.hash(user.password, salt, function(err, hash) {
+			if (err) return next(err);
 			user.password = hash;
 			next();
 		});
@@ -74,6 +79,7 @@ var Show = mongoose.model('Show', showSchema);
 
 mongoose.connect('localhost');
 
+var app = express();
 
 //Express middlewares
 app.set('port', process.env.PORT || 3000);
@@ -85,6 +91,34 @@ app.use(session({ secret: 'keyboard cat', resave: true, saveUninitialized: true}
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(express.static(path.join(__dirname, 'public')));
+
+function ensureAuthenticated(req, res, next) {
+  if (req.headers.authorization) {
+    var token = req.headers.authorization.split(' ')[1];
+    try {
+      var decoded = jwt.decode(token, tokenSecret);
+      if (decoded.exp <= Date.now()) {
+        res.send(400, 'Access token has expired');
+      } else {
+        req.user = decoded.user;
+        return next();
+      }
+    } catch (err) {
+      return res.send(500, 'Error parsing token');
+    }
+  } else {
+    return res.send(401);
+  }
+}
+
+function createJwtToken(user) {
+	var payload = {
+		user: user,
+		iat: new Date().getTime(),
+		exp: moment().add('days', 7).valueOf()
+	};
+	return jwt.encode(payload, tokenSecret);
+}
 
 app.use(function(req, res, next) {
   if (req.user) {
@@ -116,10 +150,6 @@ passport.use(new LocalStrategy({ usernameField: 'email' }, function(email, passw
   });
 }));
 
-function ensureAuthenticated(req, res, next) {
-  if (req.isAuthenticated()) next();
-  else res.send(401);
-}
 
 //APP ROUTES
 app.get('/api/shows', function(req, res, next) {
