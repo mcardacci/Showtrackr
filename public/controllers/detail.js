@@ -1,7 +1,9 @@
 angular.module('MyApp')
-  .controller('DetailCtrl', function($scope, $rootScope, $routeParams, Show, Subscription) {
-      Show.get({ _id: $routeParams.id }, function(show) {
+  .controller('DetailCtrl', ['$scope', '$rootScope', '$routeParams', 'Show', 'Subscription',
+    function($scope, $rootScope, $routeParams, Show, Subscription) {
+      Show.query({ _id: $routeParams.id}, function(show) {
         $scope.show = show;
+        // console.log(show);
 //when we get a response from the Show service  
 //above we add it to scope in order to make it 
 //to detail.html
@@ -24,8 +26,8 @@ angular.module('MyApp')
 
 //filter() method goes through every episode and checks if
 //it passes the 'new Date(episode.firstAired)' condition
-       $scope.nextEpisode = show.episodes.filter(function(episode) {
+       $scope.nextEpisode = show.filter(function(episode) {
           return new Date(episode.firstAired) > new Date();
-        })[0];
+        });
       });
     }]);

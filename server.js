@@ -11,10 +11,12 @@ var session = require('express-session');
 var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
 
-var app = express();
-
 var mongoose = require('mongoose');
 var bcrypt = require('bcryptjs');
+var crypto = require('crypto');
+
+var app = express();
+
 
 // User and Show schemas using mongoose
 var showSchema = new mongoose.Schema({
@@ -79,7 +81,45 @@ app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(session({ secret: 'keyboard cat', resave: true, saveUninitialized: true}));
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(function(req, res, next) {
+  if (req.user) {
+    res.cookie('user', JSON.stringify(req.user));
+  }
+  next();
+});
+
+//PASSPORT callbacks
+passport.serializeUser(function(user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function(id, done) {
+  User.findById(id, function(err, user) {
+    done(err, user);
+  });
+});
+
+passport.use(new LocalStrategy({ usernameField: 'email' }, function(email, password, done) {
+  User.findOne({ email: email }, function(err, user) {
+    if (err) return done(err);
+    if (!user) return done(null, false);
+    user.comparePassword(password, function(err, isMatch) {
+      if (err) return done(err);
+      if (isMatch) return done(null, user);
+      return done(null, false);
+    });
+  });
+}));
+
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) next();
+  else res.send(401);
+}
 
 //APP ROUTES
 app.get('/api/shows', function(req, res, next) {
@@ -193,6 +233,27 @@ app.post('/api/shows', function(req, res, next) {
 	});
 });
 
+app.post('/api/login', passport.authenticate('local'), function(req, res) {
+  res.cookie('user', JSON.stringify(req.user));
+  res.send(req.user);
+});
+
+app.post('/api/signup', function(req, res, next) {
+  var user = new User({
+    email: req.body.email,
+    password: req.body.password
+  });
+  user.save(function(err) {
+    if (err) return next(err);
+    res.send(200);
+  });
+});
+
+app.get('/api/logout', function(req, res, next) {
+  req.logout();
+  res.send(200);
+});
+
 //This is a hack for HTML5pushState on client-side. 
 //It is a redirect route that prevents a 404.
 //You must add this after all your other routes. 
@@ -210,7 +271,6 @@ app.use(function(err, req, res, next) {
 app.listen(app.get('port'), function() {
 	console.log('Express server listening on port ' + app.get('port'));
 });
-
 
 
 
