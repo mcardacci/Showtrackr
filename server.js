@@ -8,7 +8,6 @@ var request = require('request');
 var xml2js = require('xml2js');
 var _ = require('lodash');
 var session = require('express-session');
-var passport = require('passport');
 var LocalStrategy = require('passport-local').Strategy;
 
 var mongoose = require('mongoose');
@@ -50,7 +49,15 @@ var showSchema = new mongoose.Schema({
 var userSchema = new mongoose.Schema({
 	name: { type: String, trim: true, required: true},
 	email: { type: String, unique: true, lowercase: true, trim: true },
-	password: String
+	password: String,
+	facebook: {
+		id: String,
+		email: String
+	},
+	google: {
+		id: String,
+		email: String
+	}
 });
 
 //before save actions
@@ -85,11 +92,7 @@ var app = express();
 app.set('port', process.env.PORT || 3000);
 app.use(logger('dev'));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(session({ secret: 'keyboard cat', resave: true, saveUninitialized: true}));
-app.use(passport.initialize());
-app.use(passport.session());
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 function ensureAuthenticated(req, res, next) {
@@ -119,36 +122,6 @@ function createJwtToken(user) {
 	};
 	return jwt.encode(payload, tokenSecret);
 }
-
-app.use(function(req, res, next) {
-  if (req.user) {
-    res.cookie('user', JSON.stringify(req.user));
-  }
-  next();
-});
-
-//PASSPORT callbacks
-passport.serializeUser(function(user, done) {
-  done(null, user.id);
-});
-
-passport.deserializeUser(function(id, done) {
-  User.findById(id, function(err, user) {
-    done(err, user);
-  });
-});
-
-passport.use(new LocalStrategy({ usernameField: 'email' }, function(email, password, done) {
-  User.findOne({ email: email }, function(err, user) {
-    if (err) return done(err);
-    if (!user) return done(null, false);
-    user.comparePassword(password, function(err, isMatch) {
-      if (err) return done(err);
-      if (isMatch) return done(null, user);
-      return done(null, false);
-    });
-  });
-}));
 
 
 //APP ROUTES
@@ -183,18 +156,18 @@ app.post('/api/shows', function(req, res, next) {
 		normalizeTags: true
 	});
 	var seriesName = req.body.showName
-		.toLowerCase()
-		.replace(/ /g, '_')
-		.replace(/[^\w-]+/g, '');
+	  .toLowerCase()
+	  .replace(/ /g, '_')
+	  .replace(/[^\w-]+/g, '');
 
 	async.waterfall([
-		function(callback) {
+		function (callback) {
 			//get the Show Id given the Show Name
-			request.get('http://thetvdb.com/api/GetSeries.php?seriesname=' + seriesName, function(error, response, body) {
+			request.get('http://thetvdb.com/api/GetSeries.php?seriesname=' + seriesName, function (error, response, body) {
 				if (error) return next(error);
-				parser.parseString(body, function(err, result) {
+				parser.parseString(body, function (err, result) {
 					if (!result.data.series) {
-						return res.send(404, { message: req.body.showgitName + ' was not found.' });
+						return res.send(404, { message: req.body.showName + ' was not found.' });
 					}
 					var seriesId = result.data.series.seriesid || result.data.series[0].seriesid;
 					callback(err, seriesId);
@@ -202,14 +175,14 @@ app.post('/api/shows', function(req, res, next) {
 			});
 		},
 		// Get the Show information using the seriesId from the previous function
-		function(seriesId, callback) {
-			request.get('http://thetvdb.com/api/' + apiKey + '/series/' + seriesId + '/all/en.xml', function(error, response, body) {
-				if (error) return next(error);
-				parser.parseString(body, function(err, result) {
-					var series = result.data.series;
-					var episodes = result.data.episode;
-					var show = new Show({
-						_id: series.id,
+		function (seriesId, callback) {
+			request.get('http://thetvdb.com/api/' + apiKey + '/series/' + seriesId + '/all/en.xml', function (error, response, body) {
+        if (error) return next(error);
+        parser.parseString(body, function (err, result) {
+          var series = result.data.series;
+          var episodes = result.data.episode;
+          var show = new Show({
+            _id: series.id,
             name: series.seriesname,
             airsDayOfWeek: series.airs_dayofweek,
             airsTime: series.airs_time,
@@ -223,34 +196,34 @@ app.post('/api/shows', function(req, res, next) {
             status: series.status,
             poster: series.poster,
             episodes: []
-					});
+          });
 					//for each show:
-					_.each(episodes, function(episode) {
-						show.episodes.push({
-							season: episode.seasonnumber,
+					_.each(episodes, function (episode) {
+            show.episodes.push({
+              season: episode.seasonnumber,
               episodeNumber: episode.episodenumber,
               episodeName: episode.episodename,
               firstAired: episode.firstaired,
               overview: episode.overview
-						});
-					});
-					callback(err, show);
-				});
-			});
-		},
+            });
+          });
+          callback(err, show);
+        });
+      });
+    },
 		//Convert the poster image to Base64 and assign it to show.poster
-		function(show, callback) {
+		function (show, callback) {
 			var url = 'http://thetvdb.com/banners/' + show.poster;
-			request({ url: url, encoding: null }, function(error, response, body) {
-				show.poster = 'data:' + response.headers['content-type'] + ';base64,' + body.toString('base64');
-				callback(error, show);
-			});
-		}
+      request({ url: url, encoding: null }, function (error, response, body) {
+        show.poster = 'data:' + response.headers['content-type'] + ';base64,' + body.toString('base64');
+        callback(error, show);
+      });
+    }
 		//pass the show object to the final callback function and save it to the database
-	], function(err, show) {
-		if (err) return next(err);
-		show.save(function(err) {
-			if (err) {
+	], function (err, show) {
+    if (err) return next(err);
+    show.save(function (err) {
+      if (err) {
 				//11000 is the duplicate key error bc we can't have duplicate _id fields in Mongo
 				if (err.code === 11000) {
 					//409 is an http status code
@@ -258,18 +231,28 @@ app.post('/api/shows', function(req, res, next) {
 				}
 				return next(err);
 			}
+			// -------------------code for EMAILER-----------------
+			// var alertDate = Date.create('Next ' + show.airsDayOfWeek + ' at ' + show.airsTime).rewind({ hour: 2 });
+			// agenda.schedule(alertDate, 'send email alert', show.name).repeatEvery('1 week');
 			res.send(200);
 		});
 	});
 });
 
-app.post('/api/login', passport.authenticate('local'), function(req, res) {
-  res.cookie('user', JSON.stringify(req.user));
-  res.send(req.user);
+app.post('/auth/login', function(req, res, next) {
+  User.findOne({ email: req.body.email }, function(err, user) {
+  	if (!user) return res.send(401, "User does not exist");
+  	user.comparePassword(req.body.password, function(err, isMatch) {
+  		if (!isMatch) return res.send(401, 'Invalid email or Password');
+  		var token = createJwtToken(user);
+  		res.send({ token: token});
+  	});
+  });
 });
 
-app.post('/api/signup', function(req, res, next) {
+app.post('/auth/signup', function(req, res, next) {
   var user = new User({
+  	name: req.body.name,
     email: req.body.email,
     password: req.body.password
   });
@@ -279,10 +262,98 @@ app.post('/api/signup', function(req, res, next) {
   });
 });
 
-app.get('/api/logout', function(req, res, next) {
-  req.logout();
-  res.send(200);
+app.post('/api/subscribe', ensureAuthenticated, function (req, res, next) {
+	Show.findById(req.body.showId, function (err, show) {
+		if (err) return next(err);
+		show.subscribers.push(req.user._id);
+		show.save(function(err) {
+			if (err) return next(err);
+			res.send(200);
+		});
+	});
 });
+
+app.post('/api/unsubscribe', ensureAuthenticated, function (req, res, next) {
+	Show.findById(req.body.showId, function (err, show) {
+		if (err) return next(err);
+		var index = show.subscribers.indexOf(req.user._id);
+		show.subscribers.splice(index, 1);
+		show.save(function (err) {
+			if (err) return next(err);
+			res.send(200);
+		});
+	});
+});
+
+app.post('/auth/facebook', function(req, res, next) {
+	var profile = req.body.profile;
+	var signedRequest = req.body.signedRequest;
+	var encodedSignature = signedRequest.split('.')[0];
+	var payload = signedRequest.split('.')[1];
+
+	var appSecret = '298fb6c080fda239b809ae418bf49700';
+
+	var expectedSignature = crypto.createHmac('sha256', appSecret).update(payload).digest('base64');
+  expectedSignature = expectedSignature.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  if (encodedSignature !== expectedSignature) {
+    return res.send(400, 'Invalid Request Signature');
+  }
+
+  User.findOne({ facebook: profile.id }, function(err, existingUser) {
+    if (existingUser) {
+      var token = createJwtToken(existingUser);
+      return res.send(token);
+    }
+    var user = new User({
+      name: profile.name,
+      facebook: {
+        id: profile.id,
+        email: profile.email
+      }
+    });
+    user.save(function(err) {
+      if (err) return next(err);
+      var token = createJwtToken(user);
+      res.send(token);
+    });
+  });
+});
+
+app.post('/auth/google', function(req, res, next) {
+  var profile = req.body.profile;
+  User.findOne({ google: profile.id }, function(err, existingUser) {
+    if (existingUser) {
+      var token = createJwtToken(existingUser);
+      return res.send(token);
+    }
+    var user = new User({
+      name: profile.displayName,
+      google: {
+        id: profile.id,
+        email: profile.emails[0].value
+      }
+    });
+    user.save(function(err) {
+      if (err) return next(err);
+      var token = createJwtToken(user);
+      res.send(token);
+    });
+  });
+});
+
+app.get('/api/users', function(req, res, next) {
+	if (!req.query.email) {
+		return res.send(400, { message: 'Email parameter is required.' });
+	}
+
+	User.findOne({email: req.query.email }, function(err, user) {
+		if (er) return next(err);
+		res.send({ available: !user });
+	});
+});
+
+
 
 //This is a hack for HTML5pushState on client-side. 
 //It is a redirect route that prevents a 404.
@@ -301,6 +372,85 @@ app.use(function(err, req, res, next) {
 app.listen(app.get('port'), function() {
 	console.log('Express server listening on port ' + app.get('port'));
 });
+
+// MAILER AND SMTP STUFF
+
+// agenda.define(app.get('send email alert'), function (job, done) {
+// 	Show.findOne({ name: job.attrs.data }).populate('subscribers').exec(function (err, show) {
+// 		var emails = show.subscribers.map(function (user) {
+// 			if (user.facebook) {
+// 				return user.facebook.email;
+// 			} else if (user.google) {
+// 				return user.google.email
+// 			} else {
+// 				return user.email
+// 			}
+// 		});
+
+// 		var upcomingEpisode = show.episodes.filter(function (episode) {
+// 			return new Date(episode.firstAired) > new Date();
+// 		})[0];
+
+// 		var smtpTransport = nodeMailer.createTransport('SMTP' , {
+// 			service: 'SendGrid',
+// 			auth: { user: 'hslogin', pass: 'hspassword00' }
+// 		});
+// 		var mailOptions = {
+// 			from: 'Fred Foo Ω <meow@example.com>',
+// 			to: emails.join(','),
+// 			subject: show.name + ' is starting soon!',
+//       text: show.name + ' starts in less than 2 hours on ' + show.network + '.\n\n' +
+//       'Episode ' + upcomingEpisode.episodeNumber + ' Overview\n\n' + upcomingEpisode.overview
+//     };
+
+//     smtpTransport.sendMaiil(mailOptions, function (error, response) {
+//     	console.log('Message sent: ' + response.message);
+//     	smtpTransport.close();
+//     	done();
+//     });
+// 	});
+// });
+
+// agenda.on('start', function (job) {
+// 	console.log("Job %s starting", job.attrs.name);
+// });
+
+// agenda.on('complete', function (job) {
+// 	console.log("Job %s finished", job.attrs.name);
+// });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
