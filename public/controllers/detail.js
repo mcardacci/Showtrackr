@@ -1,7 +1,6 @@
 angular.module('MyApp')
-  .controller('DetailCtrl', ['$scope', '$rootScope', '$routeParams', 'Show', 'Subscription',
-    function($scope, $rootScope, $routeParams, Show, Subscription) {
-      Show.query({ _id: $routeParams.id}, function(show) {
+  .controller('DetailCtrl', function($scope, $rootScope, $routeParams, Show, Subscription) {
+      Show.get({ _id: $routeParams.id }, function(show) {
         $scope.show = show;
         // console.log(show);
 //when we get a response from the Show service  
@@ -30,4 +29,4 @@ angular.module('MyApp')
           return new Date(episode.firstAired) > new Date();
         });
       });
-    }]);
+    });
