@@ -2,7 +2,6 @@ angular.module('MyApp')
   .controller('DetailCtrl', function($scope, $rootScope, $routeParams, Show, Subscription) {
       Show.get({ _id: $routeParams.id }, function(show) {
         $scope.show = show;
-        // console.log(show);
 //when we get a response from the Show service  
 //above we add it to scope in order to make it 
 //to detail.html

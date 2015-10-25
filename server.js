@@ -16,7 +16,7 @@ var crypto = require('crypto');
 var jwt = require('jwt-simple');
 var moment = require('moment');
 
-// var agenda = require('agenda')({ db: { address: 'localhost:'}})
+var agenda = require('agenda')({ db: { address: 'localhost:27017/test'} });
 var sugar = require('sugar');
 var nodemailer = require('nodemailer');
 
@@ -235,9 +235,13 @@ app.post('/api/shows', function(req, res, next) {
 				}
 				return next(err);
 			}
-			// -------------------code for EMAILER-----------------
-			// var alertDate = Date.create('Next ' + show.airsDayOfWeek + ' at ' + show.airsTime).rewind({ hour: 2 });
-			// agenda.schedule(alertDate, 'send email alert', show.name).repeatEvery('1 week');
+			// -------------------code for EMAILER----------------- 
+			//shoots out an email for every new episode showing (2 hours before)
+			//Sugar.js allows us to override built-in objects like 'Date' to provide us with 
+			//extra functionality. The code below creates a Date object from "Next saturday at 
+			//..." When a new job is scheduled, agenda will save the job to MongoDB
+			var alertDate = Date.create('Next ' + show.airsDayOfWeek + ' at ' + show.airsTime).rewind({ hour: 2 });
+			agenda.schedule(alertDate, 'send email alert', show.name).repeatEvery('1 week');
 			res.send(200);
 		});
 	});
@@ -378,50 +382,58 @@ app.listen(app.get('port'), function() {
 });
 
 // MAILER AND SMTP STUFF
+//Agenda is a job scheduling library for Node
+// Creates a new agenda task called 'send email alert'. We are not concerned with 
+// when it runs yet, just what it does when it 'send email alert' is dispatched. 
 
-// agenda.define(app.get('send email alert'), function (job, done) {
-// 	Show.findOne({ name: job.attrs.data }).populate('subscribers').exec(function (err, show) {
-// 		var emails = show.subscribers.map(function (user) {
-// 			if (user.facebook) {
-// 				return user.facebook.email;
-// 			} else if (user.google) {
-// 				return user.google.email
-// 			} else {
-// 				return user.email
-// 			}
-// 		});
+// When the 'job' runs, the name of the show will be passied in as an optional data object
+agenda.define(app.get('send email alert'), function (job, done) {
+	// Since we aren't storing the entire document in 'subscribers' array(only references)
+	// we use Mongoose's populate memthod. Once the show is found, we need a list of 
+	//subscribers that have to be notified.
+	Show.findOne({ name: job.attrs.data }).populate('subscribers').exec(function (err, show) {
+		//cycles through email type
+		var emails = show.subscribers.map(function (user) {
+			if (user.facebook) {
+				return user.facebook.email;
+			} else if (user.google) {
+				return user.google.email
+			} else {
+				return user.email
+			}
+		});
 
-// 		var upcomingEpisode = show.episodes.filter(function (episode) {
-// 			return new Date(episode.firstAired) > new Date();
-// 		})[0];
+		var upcomingEpisode = show.episodes.filter(function (episode) {
+			return new Date(episode.firstAired) > new Date();
+		})[0];
+		//Nodemailer boilerplate
+		var smtpTransport = nodeMailer.createTransport('SMTP' , {
+			service: 'SendGrid',
+			auth: { user: 'hslogin', pass: 'hspassword00' }
+		});
+		var mailOptions = {
+			from: 'Fred Foo Ω <meow@example.com>',
+			to: emails.join(','),
+			subject: show.name + ' is starting soon!',
+      text: show.name + ' starts in less than 2 hours on ' + show.network + '.\n\n' +
+      'Episode ' + upcomingEpisode.episodeNumber + ' Overview\n\n' + upcomingEpisode.overview
+    };
 
-// 		var smtpTransport = nodeMailer.createTransport('SMTP' , {
-// 			service: 'SendGrid',
-// 			auth: { user: 'hslogin', pass: 'hspassword00' }
-// 		});
-// 		var mailOptions = {
-// 			from: 'Fred Foo Ω <meow@example.com>',
-// 			to: emails.join(','),
-// 			subject: show.name + ' is starting soon!',
-//       text: show.name + ' starts in less than 2 hours on ' + show.network + '.\n\n' +
-//       'Episode ' + upcomingEpisode.episodeNumber + ' Overview\n\n' + upcomingEpisode.overview
-//     };
+    smtpTransport.sendMaiil(mailOptions, function (error, response) {
+    	console.log('Message sent: ' + response.message);
+    	smtpTransport.close();
+    	done();
+    });
+	});
+});
 
-//     smtpTransport.sendMaiil(mailOptions, function (error, response) {
-//     	console.log('Message sent: ' + response.message);
-//     	smtpTransport.close();
-//     	done();
-//     });
-// 	});
-// });
+agenda.on('start', function (job) {
+	console.log("Job %s starting", job.attrs.name);
+});
 
-// agenda.on('start', function (job) {
-// 	console.log("Job %s starting", job.attrs.name);
-// });
-
-// agenda.on('complete', function (job) {
-// 	console.log("Job %s finished", job.attrs.name);
-// });
+agenda.on('complete', function (job) {
+	console.log("Job %s finished", job.attrs.name);
+});
 
 
 
