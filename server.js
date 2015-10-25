@@ -16,6 +16,10 @@ var crypto = require('crypto');
 var jwt = require('jwt-simple');
 var moment = require('moment');
 
+// var agenda = require('agenda')({ db: { address: 'localhost:'}})
+var sugar = require('sugar');
+var nodemailer = require('nodemailer');
+
 var tokenSecret = 'your unique secret';
 
 

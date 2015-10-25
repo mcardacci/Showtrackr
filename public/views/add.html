@@ -5,10 +5,11 @@
 			<form class="form" method="post" ng-submit="addShow()" name="addForm">
 				<!-- Use ng-class directive to add bootstrap success and has-error classes to the state of the form -->
 				<!-- We flag it as dirty (ie the user interacted with it), to avoid flagging it as invalid before a user has gotten the chance to enter any text -->
-				<div class="form-group" ng-class="{ 'has-success' : addForm.showName.$valid && addForm.showName.$dirty, 'has-error' : addForm.showName.$invalid && addForm.showName.$dirty }">
-					<input class="form-control" type="text" name="showName" ng-model="showName" placeholder="Enter TV show name" require autofocus>
+				<div class="form-group" ng-class="{ 'has-error' : addForm.showName.$invalid && addForm.showName.$dirty }">
+					<label class="control-label">Name</label>
+					<input class="form-control" type="text" name="showName" ng-model="showName" placehloder="Enter TV show name" required autofocus>
 					<div class="help-block text-danger" ng-if="addForm.showName.$dirty" ng-messages="addForm.showName.$error">
-						<div ng-message="required">TV Show name is required.</div>
+						<div ng-message="required">TV show name is required.</div>
 					</div>
 				</div>
 				<!-- ng-disabled button is useful for disabling a btn until form passes all validation rules -->
