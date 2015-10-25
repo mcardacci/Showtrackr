@@ -8,7 +8,6 @@ var request = require('request');
 var xml2js = require('xml2js');
 var _ = require('lodash');
 var session = require('express-session');
-var LocalStrategy = require('passport-local').Strategy;
 
 var mongoose = require('mongoose');
 var bcrypt = require('bcryptjs');
