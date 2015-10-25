@@ -3,9 +3,9 @@ angular.module('MyApp')
 //interact with RESTful server-side data sources
 //angular provides factories so we don't handle http
 //requests inside controllers. Keeps code modular
-	.factory('Show', ['$resource', function($resource) {
-		return $resource('/api/shows/:id');
-	}]);		
+	.factory('Show', function($resource) {
+		return $resource('/api/shows/:_id');
+	});		
 // //By default this service has the following methods.
 // { 'get':    {method:'GET'},
 //   'save':   {method:'POST'},
