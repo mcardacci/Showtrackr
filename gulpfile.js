@@ -4,7 +4,9 @@ var plumber = require('gulp-plumber');
 var csso = require('gulp-csso');
 var uglify = require('gulp-uglify');
 var concat = require('gulp-concat');
+var ngAnnotate = require('gulp-ng-annotate');
 var templateCache = require('gulp-angular-templatecache');
+
 
 
 // Gulp Plumber - It will prevent pipe breaking caused by errors from 
@@ -27,24 +29,26 @@ gulp.task('compress', function() {
 		//before angular.js is loaded. When we run this task a new file 
 		//'app.min.js' is created
 		'public/vendor/angular.js',
-		'public/vendor/*.js',
-		'public/app.js',
-		'public/services/*.js',
-		'public/controllers/*.js',
-		'public/filters/*.js',
-		'public/directives/*.js'
-	])
-		.pipe(concat('app.min.js'))
-		.pipe(uglify())
-		.pipe(gulp.dest('public'));
+    'public/vendor/*.js',
+    'public/app.js',
+    'public/services/*.js',
+    'public/controllers/*.js',
+    'public/filters/*.js',
+    'public/directives/*.js'
+  ])
+    .pipe(concat('app.min.js'))
+    .pipe(ngAnnotate())
+    .pipe(uglify())
+    .pipe(gulp.dest('public'));
 });
+	
 
 //This task minimizes the number of HTTP requests by cachin AngularJS
 //templates. Great for building high performance apps.
-gulp.task('templates' function() {
-	gulp.src('public/views/**/*.html')
-		.pipe(templateCache({ root: 'views', module: 'MyApp' }))
-		.pipe(gulp.dest('public'));
+gulp.task('templates', function() {
+  gulp.src('public/views/**/*.html')
+    .pipe(templateCache({ root: 'views', module: 'MyApp' }))
+    .pipe(gulp.dest('public'));
 });
 
 //gulp watches all files except for ones preceded by '!'
